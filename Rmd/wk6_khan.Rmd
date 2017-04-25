@@ -1,0 +1,266 @@
+---
+title: "Assignment 5_khan"
+author: "Firasath Ali Khan"
+date: "April 19, 2017"
+output: html_document
+---
+
+```{r include=FALSE}
+getwd()
+setwd("G:/Rockhurst spring/ADM/Assignments/wk6/data")
+bank<-read.csv("G:/Rockhurst spring/ADM/Assignments/wk6/data/bank.csv")
+dim (bank)
+bank1<-bank[,c(17,1:16)]
+names(bank)
+```
+Little background on the data
+The given Bank datset contains 17 variables and 4521 observations, the variable we are mst interestd is the y..category (i.e.. whether the client has subscribed a term deposit), The dataset conatins other information such as AMrital status of a customer,Education ttainment of a acustomer, if he has a personal or housing loan, method of contact or communication et cetra. 
+
+#Abstract
+There are only 11.5% of the total population(521) that have subscribed to term deposit. This analysis aims to Identify what factors have most impact on customer's, to subscribe for a term deposit ?  To answer this question I have analyzed the data by creating 4 prediction models followed by valdating the models as to improve the performance of that model. From these analysis I can conclude that model 3 should be used to predict if a new customer will subscribe to a term deposit or not and also create a strategy on how to attract them to a term deposit. This model is 92% accurate in identifying 52% of the population who have invested in a term deposit. The variables Maried, contact category- unknown,month- March and October,duration (last conatct duration in sec)number and poutcome(outcome of prev markeing capaign) category success. have significant impact on the customer's to subscribe to a term-deposit.
+
+Which regression method to use ?
+I began by doing a regression model for the analysis because who does not like regression ? This would give a picture about the relationship of different variables on our target variable. Simple linear regression can only be used when examining the relationship between 2 numeric variables but here I had 17 variables. So I began with a different type of regressson model called as stepwise linear regression. Stepwise linear regression is a method of regressing multiple variables while simultaneously removing those that aren't important.I am using a combination of of the two types of stepwise regression methods(forward and backward) (youtube.com/watch?v=TzhgPXrFSm8)
+
+# Model 1- Stepwise Regression:
+this model shows the relationship between variables and puts them inorder of their importance, removing variables which are not important will hep make a better model more capable of accurately predicting the outcome.
+```{r}
+prop.table(table(bank1$y..category)) 
+glm_bank <- glm(y..category ~.,data = bank1, family = "binomial")
+step.bank <- step(glm_bank, direction="both") 
+summary(step.bank) #Note 1
+step.bank$anova
+step.bank # for every poucome of success the y.category has increases 2.4(coeffiecient).
+#Recommendation : make an extra effort for the marketing strategy to make it more succesful. .
+```
+Note 1 :  I can see that the model has returned with 6 variables which are not very Important. They are -
+Marital categ:maried,
+contact category unknown,
+month March and October,
+and so on,these variables were removed for further anaysis. The variables can have either a positive or negetive effect on the target variabe, such as the variable married has negetive effect on subscriing to a term deposit and contact category unknown has the same negetive effect but the other variables have positive effect.
+
+Removing the following variables:
+ 1. age..number
+ 2. default..category
+ 3. pdays..number
+ 4. previous..number
+ 5. balance..number
+ 6. job..category
+```{r}
+bank2<-bank1[-c(6,3,15,16,7)]
+dim(bank2)
+model2<-glm(y..category~.,data=bank2, family = binomial)
+summary(model2)
+anova(model2, test="Chisq") #Now we can run the anova() function on the model to analyze the table of deviance,  A large p-value here indicates that the model without the variable explains more or less the same amount of variation. Ultimately what you would like to see is a significant drop in deviance and the AIC.
+#how to see accuracy/rsq/pvalue of this model ? http://www.statmethods.net/advstats/glm.html
+```
+
+```{r include=FALSE}
+#I am not sure what your intended goal is but if you are trying to create dummy variables out of the contact..category variable, you will need to do the following:
+#1. make sure the variable is of character type first
+#2. convert character type to factor 
+#3. create the dummy variables
+#Here's an example from the smaller bank data set:
+#names(bank)
+#[1] "age::number"         "job::category"       "marital::category"   "education::category"
+#[5] "default::category"   "balance::number"     "housing::category"   "loan::category"     
+#[9] "contact::category"   "day::number"         "month::category"     "duration::number"   
+#[13] "campaign::number"    "pdays::number"       "previous::number"    "poutcome::category" 
+#[17] "y::category"        
+
+#levels(bank$`contact::category`)
+#NULL
+#bank$`contact::category`<-as.character(bank$`contact::category`)
+#bank$`contact::category`<-as.factor(bank$`contact::category`)
+#levels(bank$`contact::category`)
+
+ #[1] "cellular"  "telephone" "unknown" 
+
+#category=factor(bank$`contact::category`)
+#dummies = model.matrix(~category-1)
+#bank<-cbind(bank,dummies)
+#names(bank)
+```
+creating a training and test dataset, I have used 80:20 split meaning I have put 80% of the observations from the dataset into my Training dataset( training set will be used to fit our model) and the other 20% into my test set (as the name implies This datset which we will be testing over the testing set). 
+
+#creating a training and test set using a 80-20 split.
+```{r} 
+set.seed(123) #set a seed to do draws from a random uniform distribution.
+bankrand <- bank2[order(runif(4521)), ] 
+bank_train <- bankrand[1:3616, ] #Training data set;  observations
+bank_test  <-bankrand[3617:4521, ]
+```
+For my First model I have begun with a simple decision tree using rpart.
+```{r include=FALSE}
+set.seed(123)
+library(rpart)
+library(rpart.plot)
+library(partykit)
+library(party)
+```
+
+```{r}
+bank.rpart=rpart(bank_train$y..category~.,method="class",parms=list(split="gini"), data=bank_train)
+summary(bank.rpart) #Variable importance  duration..number poutcome..category    month..category  marital..category 
+rpart.plot(bank.rpart, type=4, extra=101, cex = 0.7) # plotting bank.rpart
+#text(bank.rpart, use.n=TRUE, all=TRUE, cex=0.6)
+
+bank.party<-as.party(bank.rpart) # Is party fancier ??
+plot(bank.party)
+```
+
+## How to intrepret : how to intrepret : There are 3192 observations and the classified based on number of minutes the customer has spent talking to the marketing department. those who have spent less than 646 seconds then their outcome of marketing if succesfull o not is seen.If they have contacted in the month of feb,dec,march and nov thn  40% of them did not subscribe to a term deposit.
+##Technical terms : Sensitivity : the proportion of actual positive cases which are correctly identified.
+##                  Specificity : the proportion of actual negative cases which are correctly identified
+
+
+# Applying the dec tree model to the test set
+```{r}
+set.seed(123)
+library(caret)
+actual <- bank_test$y..category 
+bank_predicted <- predict(bank.rpart, newdata=bank_test, type="class") 
+bank_results.matrix <- confusionMatrix(bank_predicted, actual, positive="yes") 
+print(bank_results.matrix) # Note 2
+```
+Note 2 :Accuracy is 90.94% but sensitivity is only 44.33 and spec is 96.53%, This implies that the model is more accurate in identofying false positive cases and is approximately 50% accuarete in identiying true positive cases.
+
+
+K-Fold Cross Validation.
+##In its basic version, the so called k-fold cross-validation, the samples are randomly partitioned into k sets (called folds) of roughly equal size. A model is fit using all the samples except the first subset. Then, the prediction error of the fitted model is calculated using the first held-out samples. The same operation is repeated for each fold and the model's performance is calculated by averaging the errors across the different test sets. kis usually fixed at 5 or 10. 
+###good example of cross-validation-https://stats.stackexchange.com/questions/1826/cross-validation-in-plain-english
+
+
+
+Model 2 : Pruning the decision tree using cp value.
+```{r}
+set.seed(123)
+cvCtrl <- trainControl(method="cv", number=10) #Here I am using 10 folds to pick a Decision tree that I judge is best suitable.
+
+bank.caret.10folds<-train(y..category ~., data=bank_train, method="rpart", metric="Accuracy", tuneLength=10, trControl=cvCtrl)
+
+##Here I am using Accuracy  as my metric as I am more interested here in the accuracy of the model.
+#tuneLength decides how many models to test. I have again choosed 10 as my tunelenght, 
+
+bank.caret.10folds 
+bank.rpart.pruned<-prune(bank.rpart, cp=0.01715686) #prunning of the decision tree is done using the recommended cp value.The complexity parameter (cp) is used to control the size of the decision tree and to select the optimal tree size.
+rpart.plot(bank.rpart.pruned)
+plotcp(bank.rpart.pruned)
+```
+
+
+```{r}
+set.seed(123)
+actual <- bank_test$y..category 
+bank_predicted.10fold <- predict(bank.rpart.pruned, newdata=bank_test, type="class") 
+bank_results.matrix.10fold <- confusionMatrix(bank_predicted.10fold, actual, positive="yes") 
+print(bank_results.matrix.10fold) 
+```
+Conclusion of the pruned with cp value decision tree model :This model has accuracy of 90.39, sensitivity of 39.17 and specificity of 96.53. The previous model had Accuracy of 90.94,sensitivity of 44.33 and specificity of 96.5 This is not a better model in comparision to the First model.
+
+
+#recursive partitioning method(rpart) is not very ideal when working on dataset with many variables and classification categories. In Decision tree using rpart Once a decision split is made you only consider features that are in alignment with that split, this means that you can't find signal from features that are upstream of that split. This leads to very simple models with lots of noise and variation.
+
+Model 3
+bootstrapping for the decision tree
+#bootstrap reduces the variance found in a single decision tree model by making multiple predictions for each observation and selecting the most commonly occurring response. Theoretically this should reduce the over-fitting found in a basic decision tree model.
+##the cp value we get from train set is used to prune the tree and validate it on the test set.
+```{r}
+set.seed(123)
+cvCtrl <- trainControl(method="boot", number=10) 
+bank.bootstrap<-train(y..category ~., data=bank_train, method="rpart", metric="Accuracy", tuneLength=10, trControl=cvCtrl)
+bank.bootstrap
+bank.rpart.pruned.boot<-prune(bank.rpart, cp=0.01102941)
+rpart.plot(bank.rpart.pruned.boot)
+
+
+# validating bootstraped rpart decision tree on test set
+actual <- bank_test$y..category 
+bank_predicted.boot <- predict(bank.rpart.pruned.boot, newdata= bank_test, type="class") 
+bank_results.matrix.boot <- confusionMatrix(bank_predicted.boot, actual, positive="yes") 
+print(bank_results.matrix.boot) #The Accuracy of this model is 90.94, sensitivity is 44.33 and Specificty 96.85.
+```
+Conclusion of the Bootstrapping Model: Comparing it with the prev model- everything seems to Improve but when compared to the first model The specificity has improved very slightly. rest all parameters remain the same.Of all the models so far I would recommen using this model for any prediction.
+
+
+
+
+Bagging
+#Bagging is a relatively simple way to increase the power of a predictive statistical model by taking multiple random samples with replacement from the training data set, and using each of these samples to construct a separate model and separate predictions for the test set. These predictions are then averaged to create a, hopefully more accurate, final prediction value.
+This averAGING helps by lowering the variance in the model without affecting bias and also improves accuracy.
+```{r}
+library(randomForest)
+set.seed(123) 
+
+
+#Set mtry to equal all variables This means all variables should be considered at each split. This is what makes it "bagging." 
+bank.bag <- randomForest(y..category ~., data=bank_train, mtry=10, na.action=na.omit, importance=TRUE)
+bank.bag
+ # the "out of bag" (OOB) error rate is 10.43, there are 3056 observations here who are not subscribed to term deposit.
+
+importance(bank.bag,type=1) #Note 3 
+importance(bank.bag,type=2) #Note 4
+varImpPlot(bank.bag) # note 5
+
+#using th model on test set
+actual <- bank_test$y..category
+bank_predicted.bag <- predict(bank.bag, newdata=bank_test, type="class") 
+bank_results.matrix.bag <- confusionMatrix(bank_predicted.bag, actual, positive="yes") 
+print(bank_results.matrix.bag) 
+```
+#Note 3: shows the importance of each variable. Variable importance is computed using the Accuracy.The important variables to consider are duration number,month category,poutcome category-success and day number and age number.
+#Note 4:shows the importance of each variable. Variable importance is computed using the mean decrease in the Gini index mean decGini duration number,age number,day number, month category,poutcome category.
+#Note 5: Plots the Accuracy and Mean Gini decrease of the model.
+Conclusion of the Bagging Model: The Accuracy of this model is 91.93,sensitivity is 52.57 and specificity is 96.65. The specificity has gown below but the sensitivity has increased, As to show that this model is more capable of any other model so far created to accurattely predict the factors that influence a customer to subscribe for a term deposit.
+
+
+
+##RandomForest Model :
+The random forest model should be an improvement over the bagging model. Random forests also use bootstrap aggregating to make multiple predictions for each observation. The difference when compared to bagging is that at each branch split, a specific random sample of all the features is taken. Out of those features, the strongest one is chosen to perform the next split.
+```{r}
+set.seed(123)
+bank.RForest <- randomForest(y..category ~.,data=bank_train, mtry=3, ntree=600,na.action = na.omit, importance=TRUE) 
+ print(bank.RForest) #shows OOB of model and confusion matrix--OOB 10.45%
+importance(bank.RForest) #Note 6 
+varImpPlot(bank.RForest)
+
+#testing the randomforest model on test set
+actual <- bank_test$y..category #this is just a repeat of the above
+bank.RForest_predict<-predict(bank.RForest, bank_test ,type="response") 
+bank.RForest_results.matrix <- confusionMatrix(bank.RForest_predict, actual,positive="yes") #the model vs #the actual holdout data.
+print(bank.RForest_results.matrix) 
+```
+#Note 6 :shows the importance of each variable--For variable yes of y..category where Duration number,poutcome category and month category have significanct importance in identifying customer who are subscribed to a term deposit. The important variables as given by accuracy of model are duration number,month category and poutocem cateory,day number and contcat category. for mreangigni duration number,moth category,age umber and day number are important.
+
+Conclusion of the RandpomForest Model: the Accuracy of this model is 91.39%, sensitivity 47.42 and specificity is 96.65. The bagging model has higher Sensitivity when compared to the RandomForest model.I would recommend using this model for customer subscription prediction.
+
+
+##Boosting
+```{r}
+set.seed(123)
+library(adabag) #a popular boosting algorithm
+bank_adaboost <- boosting.cv(y..category ~.,data=bank_train, boos=TRUE, v=10) #.cv is 
+bank_adaboost$confusion #confusion matrix for boosting, there are 3073 cases of no and 135 cases of yes
+bank_adaboost$error #error rate for boosting (OOB) is 10.0.%
+1-bank_adaboost$error  # error 0.89.96%
+
+
+```
+##ROC curve
+
+The curve is created by plotting the true positive rate (TPR) against the false positive rate (FPR), If the curve come close to the 45 degree diagnola line then It is not  a very good model as it ihas low Accuracy. The closer the curve follows the left-hand border and then the top border of the ROC space, the more accurate the test.the area under the line is the area of accuracy.
+
+
+```{r}
+set.seed(123)
+library(ROCR)
+str(bank2)
+bank.RForest_predict_prob<-predict(bank.RForest, type="prob", bank_test)
+bank.pred = prediction(bank.RForest_predict_prob[,2],bank_test$y..category)#using [,2] to pick the "yes" from target variable-"y..category".
+bank.RForest.perf = performance(bank.pred,"tpr","fpr") # tpr sttands for True Positivie Rate and fpr stands for False Positive Rate.
+plot(bank.RForest.perf ,main="ROC Curve for Random Forest",col=2,lwd=2)
+abline(a=0,b=1,lwd=2,lty=2,col="gray")
+unlist(bank.RForest.perf@y.values)
+
+```
+Conclusion of the ROC curve : The curve hugs the border on the left hand side and is away from the diagonal line, This implies that te model created has high Accuracy and also accurately predicts between FPR and TPR. 
